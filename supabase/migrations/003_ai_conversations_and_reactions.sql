@@ -1,0 +1,71 @@
+-- AI Conversations and Notice Reactions Schema
+-- Run this in Supabase SQL Editor
+
+-- AI Conversations Table
+CREATE TABLE IF NOT EXISTS ai_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT DEFAULT 'New Chat',
+    preview TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- AI Chat History Table (if not exists)
+CREATE TABLE IF NOT EXISTS ai_chat_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    conversation_id UUID REFERENCES ai_conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Notice Reactions Table
+CREATE TABLE IF NOT EXISTS notice_reactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    notice_id UUID NOT NULL REFERENCES notices(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    emoji TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(notice_id, user_id, emoji)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_user ON ai_conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_created ON ai_conversations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_chat_history_conversation ON ai_chat_history(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_notice_reactions_notice ON notice_reactions(notice_id);
+CREATE INDEX IF NOT EXISTS idx_notice_reactions_user ON notice_reactions(user_id);
+
+-- RLS Policies
+ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_chat_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notice_reactions ENABLE ROW LEVEL SECURITY;
+
+-- Users can only see their own conversations
+CREATE POLICY "Users can view own conversations" ON ai_conversations
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own conversations" ON ai_conversations
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own conversations" ON ai_conversations
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Users can only see their own chat history
+CREATE POLICY "Users can view own chat history" ON ai_chat_history
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own chat messages" ON ai_chat_history
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Users can manage their own reactions
+CREATE POLICY "Users can view reactions" ON notice_reactions
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can add reactions" ON notice_reactions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can remove own reactions" ON notice_reactions
+    FOR DELETE USING (auth.uid() = user_id);
