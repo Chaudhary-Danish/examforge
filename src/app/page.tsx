@@ -31,10 +31,10 @@ export default function Onboarding() {
                 const res = await fetch('/api/user/me')
                 if (res.ok) {
                     const data = await res.json()
-                    if (data.user?.role === 'admin') {
+                    if (data.role === 'admin') {
                         router.replace('/admin/dashboard')
                         return
-                    } else if (data.user?.role === 'student') {
+                    } else if (data.role === 'student') {
                         router.replace('/student/dashboard')
                         return
                     }

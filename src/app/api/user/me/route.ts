@@ -21,13 +21,11 @@ export async function GET(req: NextRequest) {
 
             if (admin) {
                 return NextResponse.json({
-                    user: {
-                        id: admin.id,
-                        name: admin.full_name,
-                        email: admin.email,
-                        role: jwtUser.role,
-                        adminId: jwtUser.adminId
-                    }
+                    id: admin.id,
+                    name: admin.full_name,
+                    email: admin.email,
+                    role: jwtUser.role,
+                    adminId: jwtUser.adminId
                 })
             }
         }
@@ -41,26 +39,23 @@ export async function GET(req: NextRequest) {
 
             if (student) {
                 return NextResponse.json({
-                    user: {
-                        id: student.id,
-                        name: student.full_name,
-                        email: student.email,
-                        role: jwtUser.role,
-                        studentId: jwtUser.studentId
-                    }
+                    id: student.id,
+                    name: student.full_name,
+                    email: student.email,
+                    role: jwtUser.role,
+                    studentId: jwtUser.studentId
                 })
             }
         }
 
+        // Fallback to JWT data
         return NextResponse.json({
-            user: {
-                id: jwtUser.id,
-                name: jwtUser.name,
-                email: jwtUser.email,
-                role: jwtUser.role,
-                studentId: jwtUser.studentId,
-                adminId: jwtUser.adminId
-            }
+            id: jwtUser.id,
+            name: jwtUser.name,
+            email: jwtUser.email,
+            role: jwtUser.role,
+            studentId: jwtUser.studentId,
+            adminId: jwtUser.adminId
         })
 
     } catch (error) {
