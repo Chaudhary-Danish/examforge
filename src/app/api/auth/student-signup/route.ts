@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createClient } from '@/lib/supabase/server'
-import { Resend } from 'resend'
+import { sendEmail } from '@/lib/email'
 
 // Generate permanent password: SYIT-26-124 format
 function generatePassword(yearCode: string, deptCode: string): string {
@@ -78,53 +78,35 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
         }
 
-        // Send password via email
-        const resendApiKey = process.env.RESEND_API_KEY
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'ExamForge <onboarding@resend.dev>'
+        // Send password via email (Gmail SMTP)
+        const emailResult = await sendEmail({
+            to: email,
+            subject: 'Welcome to ExamForge - Your Login Credentials',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 20px;">
+                    <h1 style="color: #FF6B35; text-align: center; margin-bottom: 20px;">🦊 Welcome to ExamForge!</h1>
+                    <p style="color: white; font-size: 16px;">Hi ${fullName},</p>
+                    <p style="color: rgba(255,255,255,0.8); font-size: 14px;">Your account has been created successfully. Here are your permanent login credentials:</p>
+                    
+                    <div style="background: rgba(255,255,255,0.1); padding: 24px; border-radius: 16px; text-align: center; margin: 24px 0; border: 1px solid rgba(255,255,255,0.2);">
+                        <p style="color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 8px;">Your Permanent Password</p>
+                        <span style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #FF6B35; font-family: monospace;">${password}</span>
+                    </div>
+                    
+                    <p style="color: rgba(255,255,255,0.6); font-size: 12px; text-align: center;">Keep this password safe. You'll use it to login every time.</p>
+                    
+                    <div style="text-align: center; margin-top: 24px;">
+                        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://examforgeapp.vercel.app'}/login" style="background: #FF6B35; color: white; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 600;">Login Now</a>
+                    </div>
+                    
+                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 24px 0;">
+                    <p style="font-size: 11px; color: rgba(255,255,255,0.4); text-align: center;">ExamForge - AI-Powered Exam Preparation</p>
+                </div>
+            `
+        })
 
-        if (resendApiKey) {
-            const resend = new Resend(resendApiKey)
-
-            try {
-                const emailResult = await resend.emails.send({
-                    from: fromEmail,
-                    to: email,
-                    subject: 'Welcome to ExamForge - Your Login Credentials',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 20px;">
-                            <h1 style="color: #FF6B35; text-align: center; margin-bottom: 20px;">🦊 Welcome to ExamForge!</h1>
-                            <p style="color: white; font-size: 16px;">Hi ${fullName},</p>
-                            <p style="color: rgba(255,255,255,0.8); font-size: 14px;">Your account has been created successfully. Here are your permanent login credentials:</p>
-                            
-                            <div style="background: rgba(255,255,255,0.1); padding: 24px; border-radius: 16px; text-align: center; margin: 24px 0; border: 1px solid rgba(255,255,255,0.2);">
-                                <p style="color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 8px;">Your Permanent Password</p>
-                                <span style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #FF6B35; font-family: monospace;">${password}</span>
-                            </div>
-                            
-                            <p style="color: rgba(255,255,255,0.6); font-size: 12px; text-align: center;">Keep this password safe. You'll use it to login every time.</p>
-                            
-                            <div style="text-align: center; margin-top: 24px;">
-                                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://examforgeapp.vercel.app'}/login" style="background: #FF6B35; color: white; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 600;">Login Now</a>
-                            </div>
-                            
-                            <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 24px 0;">
-                            <p style="font-size: 11px; color: rgba(255,255,255,0.4); text-align: center;">ExamForge - AI-Powered Exam Preparation</p>
-                        </div>
-                    `
-                })
-                console.log(`✅ Password email sent to ${email}`, emailResult)
-            } catch (emailError) {
-                // Log the FULL error for debugging
-                console.error('❌ Email send FAILED:', JSON.stringify(emailError, null, 2))
-                console.error('Email error details:', emailError)
-                // Don't fail the signup — password is shown on screen too
-            }
-        } else {
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`📧 [DEV ONLY] Password for ${email}: ${password}`)
-            } else {
-                console.log(`📧 Password email skipped (RESEND_API_KEY missing).`)
-            }
+        if (!emailResult.success) {
+            console.warn(`⚠️ Password email to ${email} failed: ${emailResult.error}. Password shown on screen.`)
         }
 
         return NextResponse.json({

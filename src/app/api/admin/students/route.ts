@@ -5,9 +5,7 @@ import { verifyAuth } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 
 import bcrypt from 'bcryptjs'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { sendEmail } from '@/lib/email'
 
 // GET all students
 export async function GET(req: NextRequest) {
@@ -126,44 +124,42 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to create student' }, { status: 500 })
         }
 
-        // Send email with credentials
-        try {
-            await resend.emails.send({
-                from: 'ExamForge <noreply@examforge.in>',
-                to: email,
-                subject: 'Welcome to ExamForge - Your Login Credentials',
-                html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                        <div style="text-align: center; margin-bottom: 30px;">
-                            <h1 style="color: #f97316; margin: 0;">🦊 ExamForge</h1>
-                            <p style="color: #64748b;">AI-Powered Exam Preparation</p>
-                        </div>
-                        
-                        <h2 style="color: #1e293b;">Welcome, ${full_name}!</h2>
-                        
-                        <p style="color: #475569;">Your ExamForge account has been created. Here are your login credentials:</p>
-                        
-                        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                            <p style="margin: 0 0 10px 0;"><strong>Student ID:</strong> ${studentId}</p>
-                            <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${email}</p>
-                            <p style="margin: 0;"><strong>Password:</strong> <code style="background: #fef3c7; padding: 2px 8px; border-radius: 4px;">${password}</code></p>
-                        </div>
-                        
-                        <p style="color: #ef4444; font-size: 14px;">⚠️ Please save this password safely. This is your permanent login credential.</p>
-                        
-                        <a href="https://examforge.in/login" style="display: inline-block; background: linear-gradient(to right, #f97316, #ea580c); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 20px;">
-                            Login to ExamForge →
-                        </a>
-                        
-                        <p style="color: #94a3b8; font-size: 12px; margin-top: 30px;">
-                            If you didn't request this account, please ignore this email.
-                        </p>
+        // Send email with credentials (Gmail SMTP)
+        const emailResult = await sendEmail({
+            to: email,
+            subject: 'Welcome to ExamForge - Your Login Credentials',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #f97316; margin: 0;">🦊 ExamForge</h1>
+                        <p style="color: #64748b;">AI-Powered Exam Preparation</p>
                     </div>
-                `
-            })
-        } catch (emailError) {
-            console.error('Email send error:', emailError)
-            // Don't fail the request if email fails
+                    
+                    <h2 style="color: #1e293b;">Welcome, ${full_name}!</h2>
+                    
+                    <p style="color: #475569;">Your ExamForge account has been created. Here are your login credentials:</p>
+                    
+                    <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                        <p style="margin: 0 0 10px 0;"><strong>Student ID:</strong> ${studentId}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${email}</p>
+                        <p style="margin: 0;"><strong>Password:</strong> <code style="background: #fef3c7; padding: 2px 8px; border-radius: 4px;">${password}</code></p>
+                    </div>
+                    
+                    <p style="color: #ef4444; font-size: 14px;">⚠️ Please save this password safely. This is your permanent login credential.</p>
+                    
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://examforgeapp.vercel.app'}/login" style="display: inline-block; background: linear-gradient(to right, #f97316, #ea580c); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 20px;">
+                        Login to ExamForge →
+                    </a>
+                    
+                    <p style="color: #94a3b8; font-size: 12px; margin-top: 30px;">
+                        If you didn't request this account, please ignore this email.
+                    </p>
+                </div>
+            `
+        })
+
+        if (!emailResult.success) {
+            console.warn(`⚠️ Credentials email to ${email} failed: ${emailResult.error}`)
         }
 
         return NextResponse.json({
