@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { createClient } from '@/lib/supabase/server'
 import { generateToken } from '@/lib/auth'
 
@@ -26,9 +27,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
         }
 
-        // Check password
-        if (student.password !== password) {
+        // Check password (supports both bcrypt hash and legacy plaintext)
+        const isHashed = student.password && student.password.startsWith('$2')
+        let passwordValid = false
+
+        if (isHashed) {
+            passwordValid = await bcrypt.compare(password, student.password)
+        } else {
+            // Legacy plaintext comparison — will be migrated
+            passwordValid = student.password === password
+        }
+
+        if (!passwordValid) {
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+        }
+
+        // If password was plaintext, migrate to bcrypt hash
+        if (!isHashed && passwordValid) {
+            const hashedPassword = await bcrypt.hash(password, 10)
+            await supabase
+                .from('students')
+                .update({ password: hashedPassword })
+                .eq('id', student.id)
         }
 
         // Update last login
@@ -46,14 +66,6 @@ export async function POST(req: NextRequest) {
         })
 
         // Create response with cookie
-        // Check if environment is effectively local (localhost or local IP)
-        const host = req.headers.get('host') || ''
-        const isLocal = host.includes('localhost') ||
-            host.includes('127.0.0.1') ||
-            host.startsWith('10.') ||
-            host.startsWith('192.168.') ||
-            host.startsWith('172.16.')
-
         const response = NextResponse.json({
             success: true,
             user: {
@@ -68,7 +80,7 @@ export async function POST(req: NextRequest) {
 
         response.cookies.set('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production' && !isLocal,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 60 * 60 * 24 * 7, // 7 days
             path: '/'

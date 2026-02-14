@@ -54,14 +54,6 @@ export async function POST(req: NextRequest) {
         })
 
         // Create response with cookie
-        // Check if environment is effectively local (localhost or local IP)
-        const host = req.headers.get('host') || ''
-        const isLocal = host.includes('localhost') ||
-            host.includes('127.0.0.1') ||
-            host.startsWith('10.') ||
-            host.startsWith('192.168.') ||
-            host.startsWith('172.16.')
-
         const response = NextResponse.json({
             success: true,
             user: {
@@ -74,7 +66,7 @@ export async function POST(req: NextRequest) {
 
         response.cookies.set('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production' && !isLocal,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 60 * 60 * 24 * 7, // 7 days
             path: '/'

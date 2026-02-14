@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 
@@ -53,17 +54,20 @@ export async function POST(req: NextRequest) {
         // Generate permanent password
         const password = generatePassword(year.code, dept.code)
 
+        // Hash the password before storing
+        const hashedPassword = await bcrypt.hash(password, 10)
+
         // Create student
         const { data: student, error: createError } = await supabase
             .from('students')
             .insert({
                 email: email.toLowerCase(),
                 full_name: fullName,
-                password: password,
-                student_id: password, // Use password as student ID
+                password: hashedPassword,
+                student_id: password, // Use readable password format as student ID
                 department_id: departmentId,
                 year_id: yearId,
-                semester_id: semesterId, // Fixed: Now saving semester_id
+                semester_id: semesterId,
                 is_active: true
             })
             .select()
@@ -76,16 +80,16 @@ export async function POST(req: NextRequest) {
 
         // Send password via email
         const resendApiKey = process.env.RESEND_API_KEY
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'ExamForge <onboarding@resend.dev>'
 
         if (resendApiKey) {
             const resend = new Resend(resendApiKey)
 
             try {
-                await resend.emails.send({
-                    from: 'ExamForge <onboarding@resend.dev>',
+                const emailResult = await resend.emails.send({
+                    from: fromEmail,
                     to: email,
                     subject: 'Welcome to ExamForge - Your Login Credentials',
-                    // ... html content ...
                     html: `
                         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 20px;">
                             <h1 style="color: #FF6B35; text-align: center; margin-bottom: 20px;">🦊 Welcome to ExamForge!</h1>
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
                             <p style="color: rgba(255,255,255,0.6); font-size: 12px; text-align: center;">Keep this password safe. You'll use it to login every time.</p>
                             
                             <div style="text-align: center; margin-top: 24px;">
-                                <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background: #FF6B35; color: white; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 600;">Login Now</a>
+                                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://examforgeapp.vercel.app'}/login" style="background: #FF6B35; color: white; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 600;">Login Now</a>
                             </div>
                             
                             <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 24px 0;">
@@ -108,16 +112,18 @@ export async function POST(req: NextRequest) {
                         </div>
                     `
                 })
-                console.log(`✅ Password email sent to ${email}`)
+                console.log(`✅ Password email sent to ${email}`, emailResult)
             } catch (emailError) {
-                console.error('Email send error:', emailError)
+                // Log the FULL error for debugging
+                console.error('❌ Email send FAILED:', JSON.stringify(emailError, null, 2))
+                console.error('Email error details:', emailError)
+                // Don't fail the signup — password is shown on screen too
             }
         } else {
-            // Only log password in development for testing
             if (process.env.NODE_ENV === 'development') {
                 console.log(`📧 [DEV ONLY] Password for ${email}: ${password}`)
             } else {
-                console.log(`📧 Password email skipped (RESEND_API_KEY missing). Check 'Students' table for password.`)
+                console.log(`📧 Password email skipped (RESEND_API_KEY missing).`)
             }
         }
 

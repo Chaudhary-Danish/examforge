@@ -57,9 +57,11 @@ export async function POST(req: NextRequest) {
         if (resendApiKey) {
             const resend = new Resend(resendApiKey)
 
+            const fromEmail = process.env.RESEND_FROM_EMAIL || 'ExamForge <onboarding@resend.dev>'
+
             try {
-                await resend.emails.send({
-                    from: 'ExamForge <onboarding@resend.dev>', // Use your domain after verification
+                const emailResult = await resend.emails.send({
+                    from: fromEmail,
                     to: email,
                     subject: 'Your ExamForge Login Code',
                     html: `
@@ -76,10 +78,11 @@ export async function POST(req: NextRequest) {
                         </div>
                     `
                 })
-                console.log(`✅ OTP email sent to ${email}`)
+                console.log(`✅ OTP email sent to ${email}`, emailResult)
             } catch (emailError) {
-                console.error('Email send error:', emailError)
-                // Don't fail - still log OTP for debugging
+                console.error('❌ OTP email send FAILED:', JSON.stringify(emailError, null, 2))
+                console.error('OTP email error details:', emailError)
+                // Still log OTP for debugging
                 console.log(`📧 OTP for ${email}: ${otp}`)
             }
         } else {

@@ -22,6 +22,30 @@ export default function Onboarding() {
     const [step, setStep] = useState<1 | 2>(1)
     const [quote, setQuote] = useState('')
     const [greeting, setGreeting] = useState('')
+    const [checkingAuth, setCheckingAuth] = useState(true)
+
+    // Check if user is already logged in — skip onboarding if so
+    useEffect(() => {
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/user/me')
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.user?.role === 'admin') {
+                        router.replace('/admin/dashboard')
+                        return
+                    } else if (data.user?.role === 'student') {
+                        router.replace('/student/dashboard')
+                        return
+                    }
+                }
+            } catch {
+                // Not logged in, show onboarding
+            }
+            setCheckingAuth(false)
+        }
+        checkAuth()
+    }, [router])
 
     useEffect(() => {
         // Set random quote
@@ -42,6 +66,17 @@ export default function Onboarding() {
             return () => clearTimeout(timer)
         }
     }, [step, router])
+
+    // Show nothing while checking auth to avoid flash of onboarding
+    if (checkingAuth) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream-50 via-white to-cream-100">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center animate-pulse">
+                    <span className="text-3xl">🦊</span>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-cream-50 via-white to-cream-100 overflow-hidden relative">
