@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -23,16 +23,21 @@ export default function AdminNoticesPage() {
     const [formData, setFormData] = useState<{ title: string; content: string; priority: 'low' | 'medium' | 'high' }>({ title: '', content: '', priority: 'medium' })
     const [success, setSuccess] = useState(false)
 
-    const { data: user, isLoading: userLoading } = useQuery({
+    const { data: user, isLoading: userLoading, isError: userError } = useQuery({
         queryKey: ['user'],
         queryFn: async () => {
             const res = await fetch('/api/user/me')
-            if (!res.ok) { router.push('/login'); throw new Error('Unauthorized') }
+            if (!res.ok) throw new Error('Unauthorized')
             const data = await res.json()
-            if (data.role !== 'admin') { router.push('/login'); throw new Error('Not admin') }
+            if (data.role !== 'admin') throw new Error('Not admin')
             return data
-        }
+        },
+        retry: false
     })
+
+    useEffect(() => {
+        if (userError) router.push('/login')
+    }, [userError, router])
 
     const { data: notices, isLoading: noticesLoading } = useQuery<Notice[]>({
         queryKey: ['admin-notices'],

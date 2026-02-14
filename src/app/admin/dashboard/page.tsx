@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -36,22 +36,22 @@ export default function AdminDashboard() {
     const [showLogoutModal, setShowLogoutModal] = useState(false)
     const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-    const { data: user } = useQuery<User>({
+    const { data: user, isError: userError } = useQuery<User>({
         queryKey: ['user'],
         queryFn: async () => {
             const res = await fetch('/api/user/me')
-            if (!res.ok) {
-                router.push('/login')
-                throw new Error('Unauthorized')
-            }
+            if (!res.ok) throw new Error('Unauthorized')
             const data = await res.json()
-            if (data.role !== 'admin') {
-                router.push('/login')
-                throw new Error('Not an admin')
-            }
+            if (data.role !== 'admin') throw new Error('Not an admin')
             return data
-        }
+        },
+        retry: false
     })
+
+    // Redirect on auth failure
+    useEffect(() => {
+        if (userError) router.push('/login')
+    }, [userError, router])
 
     const { data: subjects } = useQuery<Subject[]>({
         queryKey: ['subjects'],

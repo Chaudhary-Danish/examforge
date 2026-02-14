@@ -52,19 +52,27 @@ export default function StudentDashboard() {
     const [showLogoutModal, setShowLogoutModal] = useState(false)
     const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-    const { data: user, isLoading } = useQuery<UserData>({
+    const { data: user, isLoading, isError } = useQuery<UserData>({
         queryKey: ['user'],
         queryFn: async () => {
             const res = await fetch('/api/user/me')
             if (!res.ok) {
-                router.push('/login')
                 throw new Error('Unauthorized')
             }
-            return res.json()
+            const data = await res.json()
+            return data
         },
-        staleTime: 0, // Always refetch
-        refetchOnMount: 'always' // Force fresh data on every mount
+        staleTime: 0,
+        refetchOnMount: 'always',
+        retry: false // Don't retry — if auth fails, redirect immediately
     })
+
+    // Redirect to login if auth fails
+    useEffect(() => {
+        if (isError) {
+            router.push('/login')
+        }
+    }, [isError, router])
 
     const { data: subjects } = useQuery({
         queryKey: ['subjects'],
