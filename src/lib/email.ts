@@ -1,10 +1,10 @@
 import nodemailer from 'nodemailer'
 
-const GMAIL_USER = process.env.GMAIL_USER
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD
-
 // Create reusable transporter
 function createTransporter() {
+    const GMAIL_USER = process.env.GMAIL_USER
+    const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD
+
     if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
         return null
     }

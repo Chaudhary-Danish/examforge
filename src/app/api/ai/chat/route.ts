@@ -36,14 +36,18 @@ export async function POST(req: NextRequest) {
         // Logic to get or create conversation
         let currentConversationId = conversationId;
         if (!currentConversationId && supabase) {
+            const insertData: any = {
+                user_id: user.id,
+                title: message ? (message.substring(0, 30) + '...') : 'File Upload Analysis',
+                preview: message ? (message.substring(0, 50)) : 'Sent a file'
+            };
+            if (subjectId) {
+                insertData.subject_id = subjectId;
+            }
+
             const { data: newConv } = await supabase
                 .from('ai_conversations')
-                .insert({
-                    user_id: user.id,
-                    subject_id: subjectId || null, // Link to subject if applicable
-                    title: message ? (message.substring(0, 30) + '...') : 'File Upload Analysis',
-                    preview: message ? (message.substring(0, 50)) : 'Sent a file'
-                })
+                .insert(insertData)
                 .select('id')
                 .single()
 
@@ -222,31 +226,53 @@ INSTRUCTIONS:
             { role: 'user', content: userContent }
         ]
 
-        // Call OpenRouter
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-                'X-Title': 'ExamForge AI Tutor'
-            },
-            body: JSON.stringify({
-                model: 'google/gemini-2.0-flash-001',
-                messages: openRouterMessages,
-                max_tokens: 1000,
-                temperature: 0.7
-            })
-        })
+        // Call OpenRouter with smart fallbacks (OpenRouter consistently rotates free models)
+        const modelFallbacks = [
+            'google/gemini-2.0-pro-exp-02-05:free',
+            'google/gemini-2.0-flash-lite-preview-02-05:free',
+            'meta-llama/llama-3.3-70b-instruct:free',
+            'google/gemma-2-9b-it:free',
+            'qwen/qwen-2-72b-instruct:free',
+            'inclusionai/ling-3.0-flash-vl:free'
+        ];
 
-        if (!response.ok) {
-            console.error('OpenRouter error:', await response.text())
-            // Return safe error
-            return NextResponse.json({ response: "I'm having trouble. Please try again." })
+        let finalData;
+
+        for (const modelId of modelFallbacks) {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+                    'X-Title': 'ExamForge AI Tutor'
+                },
+                body: JSON.stringify({
+                    model: modelId,
+                    messages: openRouterMessages,
+                    max_tokens: 1000,
+                    temperature: 0.7
+                })
+            })
+
+            if (response.ok) {
+                finalData = await response.json()
+                if (finalData.choices) {
+                    console.log(`Successfully used AI model: ${modelId}`)
+                    break;
+                }
+            } else {
+                console.warn(`Model ${modelId} failed:`, await response.text())
+            }
         }
 
-        const data = await response.json()
-        let aiResponse = data.choices?.[0]?.message?.content || "I couldn't generate a response."
+        if (!finalData || !finalData.choices) {
+            console.error('All AI Model fallbacks failed.')
+            // Return safe error
+            return NextResponse.json({ response: "I'm having trouble connecting to the free AI servers right now. Please try again in 5 minutes." })
+        }
+
+        let aiResponse = finalData.choices?.[0]?.message?.content || "I couldn't generate a response."
 
         // Append PDF info if relevant
         // if (pdfInfo && message.toLowerCase().includes('material')) {

@@ -65,9 +65,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             return NextResponse.json({ error: 'File is stored locally and cannot be downloaded in production' }, { status: 400 })
         }
 
-        // 4. For direct URLs (e.g. Supabase Storage), redirect
+        // 4. For direct URLs (e.g. Supabase Storage or relative local /uploads), redirect
         if (file.file_url) {
-            return NextResponse.redirect(file.file_url)
+            // Check if it's already an absolute URL (http or https)
+            if (file.file_url.startsWith('http://') || file.file_url.startsWith('https://')) {
+                return NextResponse.redirect(file.file_url)
+            }
+            // Otherwise resolve it relative to the request URL (e.g. /uploads/x.pdf)
+            return NextResponse.redirect(new URL(file.file_url, req.url))
         }
 
         return NextResponse.json({ error: 'No file URL available' }, { status: 400 })

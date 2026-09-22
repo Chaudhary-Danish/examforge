@@ -53,9 +53,19 @@ export async function POST(req: NextRequest) {
                 if (file.type === 'application/pdf') {
                     try {
                         console.log('Starting PDF parsing...')
-                        // pdf-parse is listed in serverExternalPackages, so direct require works
                         const pdfParse = require('pdf-parse')
-                        const data = await pdfParse(buffer)
+
+                        // Create a promise that rejects after 15 seconds
+                        const timeoutPromise = new Promise((_, reject) => {
+                            setTimeout(() => reject(new Error('PDF parsing timed out after 15 seconds')), 15000)
+                        });
+
+                        // Race the parsing against the timeout
+                        const data = await Promise.race([
+                            pdfParse(buffer),
+                            timeoutPromise
+                        ]) as any;
+
                         text_content = data.text || ''
                         console.log('PDF parsed successfully, length:', text_content.length)
                     } catch (parseError) {
@@ -98,11 +108,23 @@ export async function POST(req: NextRequest) {
                         } else {
                             console.error('Telegram upload failed:', tgError)
                         }
-                        file_url = `local://${file.name}`
+                        const { writeFile, mkdir } = require('fs/promises')
+                        const { join } = require('path')
+                        const uploadDir = join(process.cwd(), 'public', 'uploads')
+                        await mkdir(uploadDir, { recursive: true }).catch(() => { })
+                        const safeName = Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+                        await writeFile(join(uploadDir, safeName), buffer)
+                        file_url = `/uploads/${safeName}`
                     }
                 } else {
-                    console.warn('Telegram storage not configured. Saving as local reference.')
-                    file_url = `local://${file.name}`
+                    console.warn('Telegram storage not configured. Saving locally.')
+                    const { writeFile, mkdir } = require('fs/promises')
+                    const { join } = require('path')
+                    const uploadDir = join(process.cwd(), 'public', 'uploads')
+                    await mkdir(uploadDir, { recursive: true }).catch(() => { })
+                    const safeName = Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+                    await writeFile(join(uploadDir, safeName), buffer)
+                    file_url = `/uploads/${safeName}`
                 }
             } catch (bufferError) {
                 console.error('Buffer processing error:', bufferError)
