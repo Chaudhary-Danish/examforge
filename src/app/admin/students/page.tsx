@@ -377,7 +377,11 @@ export default function StudentsPage() {
                                 <Check className="w-8 h-8 text-green-600" />
                             </div>
                             <h2 className="text-xl font-bold text-slate-900 mb-2">Student Created!</h2>
-                            <p className="text-slate-500 text-sm mb-6">Credentials have been sent to the student's email</p>
+                            <p className="text-slate-500 text-sm mb-2">Credentials successfully emailed to the student.</p>
+                            <div className="bg-orange-50 border border-orange-200 text-orange-800 text-xs p-3 rounded-xl mb-6 text-left flex items-start gap-2">
+                                <span className="text-orange-500">🦊</span>
+                                <span>Tell the student to check their <strong>Spam or Junk folder</strong> for this first email!</span>
+                            </div>
 
                             <div className="bg-slate-50 rounded-xl p-4 text-left mb-6">
                                 <p className="text-slate-600 text-sm mb-2"><strong>Student ID:</strong></p>
