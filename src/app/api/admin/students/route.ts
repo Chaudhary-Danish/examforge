@@ -124,6 +124,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to create student' }, { status: 500 })
         }
 
+        const requestHost = req.headers.get('host')
+        const requestProtocol = requestHost?.includes('localhost') ? 'http' : 'https'
+        const appUrl = requestHost ? `${requestProtocol}://${requestHost}` : 'https://examforgeapp.vercel.app'
+
         // Send email with credentials (Gmail SMTP)
         const emailResult = await sendEmail({
             to: email,
@@ -147,7 +151,7 @@ export async function POST(req: NextRequest) {
                     
                     <p style="color: #ef4444; font-size: 14px;">⚠️ Please save this password safely. This is your permanent login credential.</p>
                     
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://examforgeapp.vercel.app'}/login" style="display: inline-block; background: linear-gradient(to right, #f97316, #ea580c); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 20px;">
+                    <a href="${appUrl}/login" style="display: inline-block; background: linear-gradient(to right, #f97316, #ea580c); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 20px;">
                         Login to ExamForge →
                     </a>
                     
