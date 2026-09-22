@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
 
         const requestHost = req.headers.get('host')
         const requestProtocol = requestHost?.includes('localhost') ? 'http' : 'https'
-        const appUrl = requestHost ? `${requestProtocol}://${requestHost}` : 'https://examforgeapp.vercel.app'
+        const appUrl = requestHost ? `${requestProtocol}://${requestHost}` : 'https://examforge-nine.vercel.app'
 
         // Send email with credentials (Gmail SMTP)
         const emailResult = await sendEmail({
