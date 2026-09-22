@@ -34,7 +34,7 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
 
     try {
         const info = await transporter.sendMail({
-            from: `ExamForge 🦊 <${GMAIL_USER}>`,
+            from: `ExamForge 🦊 <${process.env.GMAIL_USER || 'no-reply@examforge.com'}>`,
             to,
             subject,
             html,

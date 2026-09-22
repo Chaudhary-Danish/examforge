@@ -11,7 +11,7 @@ const MOCK_USERS = {
             student_id: 'STU-2024-001',
             full_name: 'John Doe',
             email: 'john@example.com',
-            password_hash: '$2a$10$pWgRlSlJ/bT725A6.ngHTedE3UGxLBZiRbv0rXCXMIl70Da1tJhK.', // password: demo123
+            password: '$2a$10$pWgRlSlJ/bT725A6.ngHTedE3UGxLBZiRbv0rXCXMIl70Da1tJhK.', // password: demo123
             is_active: true
         }
     ],
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
             }
 
             // Verify password
-            const isValid = await bcrypt.compare(password, student.password_hash)
+            const isValid = await bcrypt.compare(password, student.password)
             if (!isValid) {
                 return NextResponse.json(
                     { error: 'Invalid credentials' },
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
                 }
             })
 
-            response.cookies.set('auth_token', token, {
+            response.cookies.set('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
                 }
             })
 
-            response.cookies.set('auth_token', token, {
+            response.cookies.set('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
